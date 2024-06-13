@@ -517,6 +517,15 @@ func (s *Server) GetObjectStreaming(bucketName, objectName string) (StreamingObj
 	return obj, nil
 }
 
+func (s *Server) GetObjectStreamingWithGeneration(bucketName, objectName string, generation int64) (StreamingObject, error) {
+	backendObj, err := s.backend.GetObjectWithGeneration(bucketName, objectName, generation)
+	if err != nil {
+		return StreamingObject{}, err
+	}
+	obj := fromBackendObjects([]backend.StreamingObject{backendObj})[0]
+	return obj, nil
+}
+
 // GetObjectWithGeneration is the non-streaming version of
 // GetObjectWithGenerationStreaming.
 func (s *Server) GetObjectWithGeneration(bucketName, objectName string, generation int64) (Object, error) {
@@ -674,12 +683,21 @@ func (s *Server) getObject(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) deleteObject(r *http.Request) jsonResponse {
 	vars := unescapeMuxVars(mux.Vars(r))
-	obj, err := s.GetObjectStreaming(vars["bucketName"], vars["objectName"])
+	param := r.URL.Query().Get("ifGenerationMatch")
+	var ifGenerationMatch int64 = 0
+	if param != "" {
+		generation, err := strconv.ParseInt(param, 10, 64)
+		if err != nil {
+			return jsonResponse{status: http.StatusBadRequest}
+		}
+		ifGenerationMatch = generation
+	}
+	obj, err := s.GetObjectStreamingWithGeneration(vars["bucketName"], vars["objectName"], ifGenerationMatch)
 	// Calling Close before checking err is okay on objects, and the object
 	// may need to be closed whether or not there's an error.
 	defer obj.Close() //lint:ignore SA5001 // see above
 	if err == nil {
-		err = s.backend.DeleteObject(vars["bucketName"], vars["objectName"])
+		err = s.backend.DeleteObject(vars["bucketName"], vars["objectName"], ifGenerationMatch)
 	}
 	if err != nil {
 		return jsonResponse{status: http.StatusNotFound}

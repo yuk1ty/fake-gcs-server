@@ -72,15 +72,15 @@ func getNewGenerationIfZero(generation int64) int64 {
 }
 
 func (bm *bucketInMemory) deleteObject(obj Object, matchGeneration bool) {
-	index := findObject(obj, bm.activeObjects, matchGeneration)
-	if index < 0 {
-		return
-	}
 	if bm.VersioningEnabled {
-		obj.Deleted = time.Now().Format(timestampFormat)
-		bm.mvToArchive(obj)
+		if matchGeneration {
+			bm.completelyDeleteFromObjectList(obj)
+		} else {
+			obj.Deleted = time.Now().Format(timestampFormat)
+			bm.mvToArchive(obj)
+		}
 	} else {
-		bm.deleteFromObjectList(obj, true)
+		bm.completelyDeleteFromObjectList(obj)
 	}
 }
 
@@ -91,6 +91,24 @@ func (bm *bucketInMemory) cpToArchive(obj Object) {
 func (bm *bucketInMemory) mvToArchive(obj Object) {
 	bm.cpToArchive(obj)
 	bm.deleteFromObjectList(obj, true)
+}
+
+func (bm *bucketInMemory) completelyDeleteFromObjectList(obj Object) {
+	activeObjects := bm.activeObjects
+	archiveObjects := bm.archivedObjects
+
+	activeIndex := findObject(obj, activeObjects, true)
+	archiveIndex := findObject(obj, archiveObjects, true)
+
+	if activeIndex >= 0 {
+		activeObjects[activeIndex] = activeObjects[len(activeObjects)-1]
+		bm.activeObjects = activeObjects[:len(activeObjects)-1]
+	}
+
+	if archiveIndex >= 0 {
+		archiveObjects[archiveIndex] = archiveObjects[len(archiveObjects)-1]
+		bm.archivedObjects = archiveObjects[:len(archiveObjects)-1]
+	}
 }
 
 func (bm *bucketInMemory) deleteFromObjectList(obj Object, active bool) {
@@ -298,8 +316,8 @@ func (s *storageMemory) GetObjectWithGeneration(bucketName, objectName string, g
 	return listToConsider[index].StreamingObject(), nil
 }
 
-func (s *storageMemory) DeleteObject(bucketName, objectName string) error {
-	obj, err := s.GetObject(bucketName, objectName)
+func (s *storageMemory) DeleteObject(bucketName, objectName string, generation int64) error {
+	obj, err := s.GetObjectWithGeneration(bucketName, objectName, generation)
 	if err != nil {
 		return err
 	}
@@ -313,7 +331,8 @@ func (s *storageMemory) DeleteObject(bucketName, objectName string) error {
 	if err != nil {
 		return err
 	}
-	bucketInMemory.deleteObject(bufferedObject, true)
+	matchGeneration := generation != 0
+	bucketInMemory.deleteObject(bufferedObject, matchGeneration)
 	s.buckets[bucketName] = bucketInMemory
 	return nil
 }

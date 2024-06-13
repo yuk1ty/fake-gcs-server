@@ -134,7 +134,7 @@ func (g *Server) GetObject(ctx context.Context, req *pb.GetObjectRequest) (*pb.G
 }
 
 func (g *Server) DeleteObject(ctx context.Context, req *pb.DeleteObjectRequest) (*pb.Empty, error) {
-	err := g.backend.DeleteObject(req.Bucket, req.Object)
+	err := g.backend.DeleteObject(req.Bucket, req.Object, req.IfGenerationMatch.Value)
 	return &pb.Empty{}, err
 }
 

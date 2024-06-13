@@ -123,7 +123,7 @@ func TestObjectCRUD(t *testing.T) {
 			_, err := storage.GetObject(bucketName, objectName)
 			shouldError(t, err)
 			// Delete in non-existent case
-			err = storage.DeleteObject(bucketName, objectName)
+			err = storage.DeleteObject(bucketName, objectName, 0)
 			shouldError(t, err)
 			err = storage.CreateBucket(bucketName, BucketAttrs{VersioningEnabled: versioningEnabled})
 			if reflect.TypeOf(storage) == reflect.TypeOf(&storageFS{}) && versioningEnabled {
@@ -187,7 +187,7 @@ func TestObjectCRUD(t *testing.T) {
 				t.Errorf("wrong number of objects returned\nwant 1\ngot  %d", len(objs))
 			}
 
-			err = storage.DeleteObject(bucketName, objectName)
+			err = storage.DeleteObject(bucketName, objectName, 0)
 			noError(t, err)
 
 			_, err = storage.GetObject(bucketName, objectName)

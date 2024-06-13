@@ -377,7 +377,7 @@ func (s *storageFS) getObjectAttrs(bucketName, objectName string) (ObjectAttrs, 
 }
 
 // DeleteObject deletes an object by bucket and name.
-func (s *storageFS) DeleteObject(bucketName, objectName string) error {
+func (s *storageFS) DeleteObject(bucketName, objectName string, _ int64) error {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	if objectName == "" {
