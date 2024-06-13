@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -265,7 +266,12 @@ func (s *storageMemory) ListObjects(bucketName string, prefix string, versions b
 		if prefix != "" && !strings.HasPrefix(obj.Name, prefix) {
 			continue
 		}
-		archvObjs = append(archvObjs, obj.ObjectAttrs)
+		onActive := slices.ContainsFunc(bucketInMemory.activeObjects, func(active Object) bool {
+			return active.Name == obj.Name
+		})
+		if onActive {
+			archvObjs = append(archvObjs, obj.ObjectAttrs)
+		}
 	}
 	return append(objAttrs, archvObjs...), nil
 }
